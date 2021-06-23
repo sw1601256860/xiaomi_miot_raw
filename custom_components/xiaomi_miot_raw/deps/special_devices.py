@@ -64,6 +64,11 @@ SPECIAL_DEVICES={
         "mapping": {"air_conditioner": {"switch_status": {"siid": 2, "piid": 1}, "mode": {"siid": 2, "piid": 2}, "target_temperature": {"siid": 2, "piid": 3}, "speed": {"siid": 3, "piid": 1}}, "switch": {"switch_status": {"siid": 2, "piid": 1}}},
         "params": {"air_conditioner": {"switch_status": {"power_on": True, "power_off": False}, "mode": {"Cool": 1, "Heat": 2}, "target_temperature": {"value_range": [17, 30, 1]}, "main": True, "speed": {"Auto": 0, "Low": 1, "Medium": 2, "High": 3}}, "switch": {"switch_status": {"power_on": True, "power_off": False}}}
     },
+    "yeelink.remote.remote": {
+        "device_type":['sensor'],
+        "mapping":{"button":{"key":4097,"type":"event"}},
+        "params":{"event_based":True}
+    },
 }
 
 

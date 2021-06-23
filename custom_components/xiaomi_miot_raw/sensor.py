@@ -40,6 +40,7 @@ from .deps.ble_event_parser import (
     BleDoorParser,
     BleLockParser,
     BleMotionParser,
+    BleButtonParser,
 )
 from collections import OrderedDict
 from .deps.miot_coordinator import MiotEventCoordinator
@@ -517,6 +518,16 @@ class MiotEventBasedSensor(Entity):
                     'data_processor': BleLockParser,
                     'property': 'key_id_short',
                     'icon': 'mdi:account-key',
+                })
+            )
+        elif k == 4097:
+            ett_to_add.append(
+                MiotEventBasedSubSensor(self, {
+                    'id': 'click_type',
+                    'name': 'Click type',
+                    'data_processor': BleButtonParser,
+                    'property': 'action_name',
+                    'icon': 'mdi:gesture-double-tap',
                 })
             )
 

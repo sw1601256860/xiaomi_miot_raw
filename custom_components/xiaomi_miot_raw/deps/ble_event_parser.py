@@ -65,6 +65,13 @@ BLE_LOCK_ERROR = {
     0xC0DE1005: "锁体传感器故障",
 }
 
+BUTTON_EVENTS = {
+    0: "single press",
+    1: "double press",
+    2: "long press",
+    3: "triple press",
+}
+
 class BleEventParser:
     def __init__(self, data):
         self.data = re.sub(r'\[\"(.*)\"\]', r'\1', data)
@@ -137,6 +144,18 @@ class BleLockParser(BleEventParser):    #0x000b, 11
     @property
     def timestamp(self):
         return int.from_bytes(self[5:9], 'little')
+
+class BleButtonParser(BleEventParser):  #0x1001, 4097
+    @property
+    def action_id(self):
+        return self[2]
+
+    @property
+    def action_name(self):
+        if self[2] in BUTTON_EVENTS:
+            return BUTTON_EVENTS[self[2]]
+        else:
+            return ""
 
 class BleMotionParser(BleEventParser):
     @property
