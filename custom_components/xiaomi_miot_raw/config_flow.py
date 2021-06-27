@@ -216,6 +216,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._cloud_device = None
         self._input2 = {}
         self._input2.update({"ett_id_migrated": True}) # 新的实体ID格式，相对稳定，为避免已有ID变化，灰度选项
+        self._input2.update({"new_params_migrated": True}) # 新的params格式，增加了单位、读写性等信息
         self._actions = {
             'xiaomi_account': "登录小米账号",
             'localinfo': "通过 IP/token 添加设备"

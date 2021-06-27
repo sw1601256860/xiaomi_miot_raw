@@ -110,6 +110,7 @@ async def async_setup_entry(hass, entry):
                  'cloud_write',
                  'devtype',
                  'ett_id_migrated',
+                 'new_params_migrated',
                  'cloud_device_info',
                  ]:
         config[item] = entry.data.get(item)
@@ -280,6 +281,11 @@ class GenericMiotDevice(Entity):
             self._mapping = mappingnew
 
         self._ctrl_params = config.get(CONF_CONTROL_PARAMS) or {}
+        if self._ctrl_params and not config.get('new_params_migrated'):
+            for k in self._ctrl_params:
+                for kk in self._ctrl_params[k]:
+                    if kk in ['fault', 'speed', 'mode', 'drying_level', 'status', 'motor_control', 'motor_status', 'playing_state']:
+                        self._ctrl_params[k][kk] = {'value_list': self._ctrl_params[k][kk]}
 
         if type(self._ctrl_params) == str:
             self._ctrl_params = json.loads(self._ctrl_params)
@@ -573,7 +579,9 @@ class GenericMiotDevice(Entity):
                     or 'fault' in key) \
                     and type(value) == int:
                     if key in self._ctrl_params_new:
-                        if s := self.get_key_by_value(self._ctrl_params_new[key], value):
+                        target_list = self._ctrl_params_new[key]['value_list'] \
+                            if 'value_list' in self._ctrl_params_new[key] else self._ctrl_params_new[key]
+                        if s := self.get_key_by_value(target_list, value):
                             return s
                 return value
             except KeyError:

@@ -109,14 +109,14 @@ class MiotFan(ToggleableMiotDevice, FanEntity):
             return None
         else:
             if 'speed' in self._ctrl_params:
-                return list(self._ctrl_params['speed'].keys())
+                return list(self._ctrl_params['speed']['value_list'].keys())
             elif 'mode' in self._ctrl_params:
-                return list(self._ctrl_params['mode'].keys())
+                return list(self._ctrl_params['mode']['value_list'].keys())
 
     @property
     def _speed_list_without_preset_modes(self) -> list:
         if 'stepless_speed' not in self._ctrl_params:
-            return list(self._ctrl_params['speed'].keys())
+            return list(self._ctrl_params['speed']['value_list'].keys())
         else:
             return list(range(
                 self._ctrl_params['stepless_speed']['value_range'][0],
@@ -133,7 +133,7 @@ class MiotFan(ToggleableMiotDevice, FanEntity):
     def preset_modes(self) -> list:
         """Get the list of available preset_modes."""
         try:
-            return list(self._ctrl_params['mode'].keys())
+            return list(self._ctrl_params['mode']['value_list'].keys())
         except KeyError:
             return []
 
@@ -173,9 +173,9 @@ class MiotFan(ToggleableMiotDevice, FanEntity):
 
         elif speed:
             if 'speed' in self._ctrl_params:
-                parameters.append({**{'did': self._did_prefix + "speed", 'value': self._ctrl_params['speed'][speed]}, **(self._mapping[self._did_prefix + 'speed'])})
+                parameters.append({**{'did': self._did_prefix + "speed", 'value': self._ctrl_params['speed']['value_list'][speed]}, **(self._mapping[self._did_prefix + 'speed'])})
             elif 'mode' in self._ctrl_params:
-                parameters.append({**{'did': self._did_prefix + "mode", 'value': self._ctrl_params['mode'][speed]}, **(self._mapping[self._did_prefix + 'mode'])})
+                parameters.append({**{'did': self._did_prefix + "mode", 'value': self._ctrl_params['mode']['value_list'][speed]}, **(self._mapping[self._did_prefix + 'mode'])})
 
         result = await self.set_property_new(multiparams = parameters)
         if result:
@@ -193,7 +193,7 @@ class MiotFan(ToggleableMiotDevice, FanEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
-        result = await self.set_property_new(self._did_prefix + "mode", self._ctrl_params['mode'][preset_mode])
+        result = await self.set_property_new(self._did_prefix + "mode", self._ctrl_params['mode']['value_list'][preset_mode])
         if result:
             self._state = True
             self._mode = preset_mode
@@ -212,9 +212,9 @@ class MiotFan(ToggleableMiotDevice, FanEntity):
             d = 'right'
         else:
             d = direction
-        if d not in self._ctrl_params['motor_control']:
+        if d not in self._ctrl_params['motor_control']['value_list']:
             raise TypeError(f"Your fan does not support {direction}.")
-        await self.set_property_new(self._did_prefix + "motor_control", self._ctrl_params['motor_control'][d])
+        await self.set_property_new(self._did_prefix + "motor_control", self._ctrl_params['motor_control']['value_list'][d])
 
     # async def async_set_percentage(self, percentage: int) -> None:
     #     """Set the speed percentage of the fan."""
@@ -223,13 +223,13 @@ class MiotFan(ToggleableMiotDevice, FanEntity):
     def _handle_platform_specific_attrs(self):
         super()._handle_platform_specific_attrs()
         try:
-            self._speed = self.get_key_by_value(self._ctrl_params['speed'],self._state_attrs.get(self._did_prefix + 'speed')) \
+            self._speed = self.get_key_by_value(self._ctrl_params['speed']['value_list'],self._state_attrs.get(self._did_prefix + 'speed')) \
                 if 'stepless_speed' not in self._ctrl_params or not NEW_FAN \
                 else self._state_attrs.get(self._did_prefix + 'stepless_speed')
         except KeyError:
             self._speed = None
         try:
-            self._mode = self.get_key_by_value(self._ctrl_params['mode'],self._state_attrs.get(self._did_prefix + 'mode'))
+            self._mode = self.get_key_by_value(self._ctrl_params['mode']['value_list'],self._state_attrs.get(self._did_prefix + 'mode'))
         except KeyError:
             self._mode = None
         self._oscillation = self._state_attrs.get(self._did_prefix + 'oscillate')
@@ -256,19 +256,19 @@ class MiotSubFan(MiotSubToggleableDevice, FanEntity):
         if NEW_FAN:
             return None
         else:
-            return list(self._ctrl_params['speed'].keys())
+            return list(self._ctrl_params['speed']['value_list'].keys())
 
     @property
     def preset_modes(self) -> list:
         """Get the list of available preset_modes."""
-        return list(self._ctrl_params['speed'].keys())
+        return list(self._ctrl_params['speed']['value_list'].keys())
 
     @property
     def speed(self):
         """Return the current speed."""
         if not NEW_FAN:
             try:
-                self._speed = self.get_key_by_value(self._ctrl_params['speed'],self.device_state_attributes[self._did_prefix + 'speed'])
+                self._speed = self.get_key_by_value(self._ctrl_params['speed']['value_list'],self.device_state_attributes[self._did_prefix + 'speed'])
             except KeyError:
                 self._speed = None
             return self._speed
@@ -279,7 +279,7 @@ class MiotSubFan(MiotSubToggleableDevice, FanEntity):
     def preset_mode(self):
         """Return the current speed."""
         try:
-            self._speed = self.get_key_by_value(self._ctrl_params['speed'],self.device_state_attributes[self._did_prefix + 'speed'])
+            self._speed = self.get_key_by_value(self._ctrl_params['speed']['value_list'],self.device_state_attributes[self._did_prefix + 'speed'])
         except KeyError:
             self._speed = None
         return self._speed
@@ -308,7 +308,7 @@ class MiotSubFan(MiotSubToggleableDevice, FanEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
-        result = await self._parent_device.set_property_new(self._did_prefix + "speed", self._ctrl_params['speed'][preset_mode])
+        result = await self._parent_device.set_property_new(self._did_prefix + "speed", self._ctrl_params['speed']['value_list'][preset_mode])
         if result:
             self._state = True
             self._speed = preset_mode
@@ -324,7 +324,7 @@ class MiotSubFan(MiotSubToggleableDevice, FanEntity):
         parameters = [{**{'did': self._did_prefix + "switch_status", 'value': self._ctrl_params['switch_status']['power_on']},**(self._mapping['switch_status'])}]
 
         if speed:
-            parameters.append({**{'did': self._did_prefix + "speed", 'value': self._ctrl_params['speed'][speed]}, **(self._mapping['speed'])})
+            parameters.append({**{'did': self._did_prefix + "speed", 'value': self._ctrl_params['speed']['value_list'][speed]}, **(self._mapping['speed'])})
 
         result = await self._parent_device.set_property_new(multiparams = parameters)
         if result:

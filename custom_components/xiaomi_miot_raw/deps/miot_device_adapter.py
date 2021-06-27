@@ -241,17 +241,17 @@ class MiotAdapter:
             if p := propdict2.pop('fault', None):
                 if vl := p.vlist:
                     lst = {item['description']: item['value'] for item in vl}
-                    ret['fault'] = lst
+                    ret['fault'] = {'value_list': lst}
 
             if p := propdict2.pop('fan_level', None):
                 if vl := p.vlist:
                     lst = {item['description']: item['value'] for item in vl}
-                    ret['speed'] = lst
+                    ret['speed'] = {'value_list': lst}
                 elif vr := p.vrange:
                     lst = {
                         str(i):i for i in range(vr[0],vr[1]+1,vr[2])
                     }
-                    ret['speed'] = lst
+                    ret['speed'] = {'value_list': lst}
 
             if p := propdict2.pop('speed_level', None): # dmaker stepless speed
                 if vr := p.vrange:
@@ -268,12 +268,12 @@ class MiotAdapter:
             if p := propdict2.pop('mode', None):
                 if vl := p.vlist:
                     lst = {item['description']: item['value'] for item in vl}
-                    ret['mode'] = lst
+                    ret['mode'] = {'value_list': lst}
                 elif vr := p.vrange:
                     lst = {
                         str(i):i for i in range(vr[0],vr[1]+1,vr[2])
                     }
-                    ret['mode'] = lst
+                    ret['mode'] = {'value_list': lst}
             if p := propdict2.pop('target_temperature', None):
                 if vr := p.vrange:
                     ret['target_temperature'] = {
@@ -283,12 +283,12 @@ class MiotAdapter:
             if p := propdict2.pop('drying_level', None):
                 if vl := p.vlist:
                     lst = {item['description']: item['value'] for item in vl}
-                    ret['drying_level'] = lst
+                    ret['drying_level'] = {'value_list': lst}
 
             if p := propdict2.pop('status', None):
                 if vl := p.vlist:
                     lst = {item['description']: item['value'] for item in vl}
-                    ret['status'] = lst
+                    ret['status'] = {'value_list': lst}
 
             # print(devtype)
             if devtype == 'light':
@@ -312,24 +312,24 @@ class MiotAdapter:
 
             if devtype == 'cover':
                 if p := propdict2.pop('motor_control', None):
-                    dct = {}
+                    lst = {}
                     if vl := p.vlist:
                         for item in vl:
                             if 'pause' in item['description'].lower() or \
                                 'stop' in item['description'].lower() or \
                                 '停' in item['description']:
-                                        dct['stop'] = item['value']
+                                        lst['stop'] = item['value']
                             if 'up' in item['description'].lower() or \
                                 'open' in item['description'].lower() or \
                                 '升' in item['description']:
-                                    dct['open'] = item['value']
+                                    lst['open'] = item['value']
                             if 'down' in item['description'].lower() or \
                                 'close' in item['description'].lower() or \
                                 '降' in item['description']:
-                                    dct['close'] = item['value']
-                        ret['motor_control'] = dct
+                                    lst['close'] = item['value']
+                        ret['motor_control'] = {'value_list': lst}
                         for item in ['open','close','stop']:
-                            if item not in dct:
+                            if item not in lst:
                                 _LOGGER.error(f"No {item} was found in motor_control.")
                 if p := propdict2.pop('current_position', None):
                     if vr := p.vrange:
@@ -342,19 +342,19 @@ class MiotAdapter:
                             'value_range': vr
                         }
                 if p := propdict2.pop('status', None):
-                    dct = {}
+                    lst = {}
                     if vl := p.vlist:
                         for item in vl:
                             if 'up' in item['description'].lower() or \
                                 'open' in item['description'].lower() or \
                                 '升' in item['description']:
-                                    dct['open'] = item['value']
+                                    lst['open'] = item['value']
                             if 'down' in item['description'].lower() or \
                                 'close' in item['description'].lower() or \
                                 'dowm' in item['description'].lower() or \
                                 '降' in item['description']:
-                                    dct['close'] = item['value']
-                        ret['motor_status'] = dct
+                                    lst['close'] = item['value']
+                        ret['motor_status'] = {'value_list': lst}
 
             if devtype == 'fan':
                 if p := propdict2.pop('mode', None):
@@ -382,14 +382,14 @@ class MiotAdapter:
                         }
                 if p := propdict2.pop('playing_state', None):
                     if vl := p.vlist:
-                        dct = {}
+                        lst = {}
                         for item in vl:
                             if 'pause' in item['description'].lower() or \
                                 'idle' in item['description'].lower():
-                                    dct['pause'] = item['value']
+                                    lst['pause'] = item['value']
                             if 'play' in item['description'].lower():
-                                dct['playing'] = item['value']
-                        ret['playing_state'] = dct
+                                lst['playing'] = item['value']
+                        ret['playing_state'] = {'value_list': lst}
 
             if p := propdict2.pop('target_humidity', None):
                 if vr := p.vrange:
@@ -409,7 +409,10 @@ class MiotAdapter:
 
             #####################
 
-            for k,v in propdict2.items():
+            for k,v in propdict.items():
+                k2 = translate.get(k) or k
+                if k2 not in ret:
+                    continue
                 r = {}
                 acc = 0
                 acc |= ACCESS_READ if 'read' in v.access else 0
@@ -417,12 +420,13 @@ class MiotAdapter:
                 acc |= ACCESS_NOTIFY if 'notify' in v.access else 0
                 r['access'] = acc
                 r['format'] = v.format_
-                r['unit'] = v.unit if v.unit != "none" else None
+                if v.unit is not None and v.unit != "none":
+                    r['unit'] = v.unit
                 if v.vlist:
                     r['value_list'] = dict([(a['description'], a['value']) for a in v.vlist])
                 elif v.vrange:
                     r['value_range'] = v.vrange
-                ret[k] = r
+                ret[k2].update(r)
 
             return ret
         except Exception as ex:
