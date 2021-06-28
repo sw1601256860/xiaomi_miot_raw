@@ -122,7 +122,7 @@ class MiotCover(GenericMiotDevice, CoverEntity):
                 or 'clos' in self._action.lower()
         elif type(self._action) == int:
             try:
-                return self._action == self._ctrl_params['motor_status']['close']
+                return self._action == self._ctrl_params['motor_status']['value_list']['close']
             except KeyError:
                 return False
         return False
@@ -135,18 +135,18 @@ class MiotCover(GenericMiotDevice, CoverEntity):
                 or 'open' in self._action.lower()
         elif type(self._action) == int:
             try:
-                return self._action == self._ctrl_params['motor_status']['open']
+                return self._action == self._ctrl_params['motor_status']['value_list']['open']
             except KeyError:
                 return False
         return False
 
     async def async_open_cover(self, **kwargs):
         """Open the cover."""
-        result = await self.set_property_new(self._did_prefix + "motor_control",self._ctrl_params['motor_control']['open'])
+        result = await self.set_property_new(self._did_prefix + "motor_control",self._ctrl_params['motor_control']['value_list']['open'])
         if result:
             # self._skip_update = True
             try:
-                self._action = self._ctrl_params['motor_status']['open']
+                self._action = self._ctrl_params['motor_status']['value_list']['open']
             except KeyError as ex:
                 _LOGGER.error(ex)
             self.async_write_ha_state()
@@ -155,10 +155,10 @@ class MiotCover(GenericMiotDevice, CoverEntity):
 
     async def async_close_cover(self, **kwargs):
         """Close the cover."""
-        result = await self.set_property_new(self._did_prefix + "motor_control",self._ctrl_params['motor_control']['close'])
+        result = await self.set_property_new(self._did_prefix + "motor_control",self._ctrl_params['motor_control']['value_list']['close'])
         if result:
             try:
-                self._action = self._ctrl_params['motor_status']['close']
+                self._action = self._ctrl_params['motor_status']['value_list']['close']
             except KeyError:
                 pass
             self.async_write_ha_state()
@@ -167,7 +167,7 @@ class MiotCover(GenericMiotDevice, CoverEntity):
 
     async def async_stop_cover(self, **kwargs):
         """Close the cover."""
-        result = await self.set_property_new(self._did_prefix + "motor_control",self._ctrl_params['motor_control']['stop'])
+        result = await self.set_property_new(self._did_prefix + "motor_control",self._ctrl_params['motor_control']['value_list']['stop'])
         if result:
             self.async_write_ha_state()
 

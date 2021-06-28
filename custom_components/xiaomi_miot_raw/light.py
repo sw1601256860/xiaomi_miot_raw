@@ -109,8 +109,8 @@ class MiotLight(ToggleableMiotDevice, LightEntity):
             # for some devices that control onoff by setting brightness to 0
             parameters.append({**{'did': self._did_prefix + "brightness", 'value': self._ctrl_params['brightness']['value_range'][-2]}, **(self._mapping[self._did_prefix + 'brightness'])})
         if ATTR_EFFECT in kwargs:
-            modes = self._ctrl_params['mode']
-            parameters.append({**{'did': self._did_prefix + "mode", 'value': self._ctrl_params['mode'].get(kwargs[ATTR_EFFECT])}, **(self._mapping[self._did_prefix + 'mode'])})
+            modes = self._ctrl_params['mode']['value_list']
+            parameters.append({**{'did': self._did_prefix + "mode", 'value': self._ctrl_params['mode']['value_list'].get(kwargs[ATTR_EFFECT])}, **(self._mapping[self._did_prefix + 'mode'])})
         if ATTR_BRIGHTNESS in kwargs:
             self._effect = None
             parameters.append({**{'did': self._did_prefix + "brightness", 'value': self.convert_value(kwargs[ATTR_BRIGHTNESS],"brightness", True, self._ctrl_params['brightness']['value_range'])}, **(self._mapping[self._did_prefix + 'brightness'])})
@@ -167,7 +167,7 @@ class MiotLight(ToggleableMiotDevice, LightEntity):
     @property
     def effect_list(self):
         """Return the list of supported effects."""
-        return list(self._ctrl_params['mode'].keys()) #+ ['none']
+        return list(self._ctrl_params['mode']['value_list'].keys()) #+ ['none']
 
     @property
     def effect(self):
@@ -197,7 +197,7 @@ class MiotLight(ToggleableMiotDevice, LightEntity):
             self._state_attrs.update({'mode': self._state_attrs['mode']})
         except KeyError: pass
         try:
-            self._effect = self.get_key_by_value(self._ctrl_params['mode'],self._state_attrs[self._did_prefix + 'mode'])
+            self._effect = self.get_key_by_value(self._ctrl_params['mode']['value_list'],self._state_attrs[self._did_prefix + 'mode'])
         except KeyError:
             self._effect = None
 
@@ -240,8 +240,8 @@ class MiotSubLight(MiotSubToggleableDevice, LightEntity):
             # for some devices that control onoff by setting brightness to 0
             parameters.append({**{'did': self._did_prefix + "brightness", 'value': self._ctrl_params['brightness']['value_range'][-2]}, **(self._mapping['brightness'])})
         if ATTR_EFFECT in kwargs:
-            modes = self._ctrl_params['mode']
-            parameters.append({**{'did': self._did_prefix + "mode", 'value': self._ctrl_params['mode'].get(kwargs[ATTR_EFFECT])}, **(self._mapping['mode'])})
+            modes = self._ctrl_params['mode']['value_list']
+            parameters.append({**{'did': self._did_prefix + "mode", 'value': self._ctrl_params['mode']['value_list'].get(kwargs[ATTR_EFFECT])}, **(self._mapping['mode'])})
         if ATTR_BRIGHTNESS in kwargs:
             self._effect = None
             parameters.append({**{'did': self._did_prefix + "brightness", 'value': self.convert_value(kwargs[ATTR_BRIGHTNESS],"brightness", True, self._ctrl_params['brightness']['value_range'])}, **(self._mapping['brightness'])})
@@ -304,13 +304,13 @@ class MiotSubLight(MiotSubToggleableDevice, LightEntity):
     @property
     def effect_list(self):
         """Return the list of supported effects."""
-        return list(self._ctrl_params['mode'].keys()) #+ ['none']
+        return list(self._ctrl_params['mode']['value_list'].keys()) #+ ['none']
 
     @property
     def effect(self):
         """Return the current effect."""
         try:
-            self._effect = self.get_key_by_value(self._ctrl_params['mode'],self.device_state_attributes[self._did_prefix + 'mode'])
+            self._effect = self.get_key_by_value(self._ctrl_params['mode']['value_list'],self.device_state_attributes[self._did_prefix + 'mode'])
         except KeyError:
             self._effect = None
         return self._effect

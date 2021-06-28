@@ -111,7 +111,7 @@ class MiotHumidifier(ToggleableMiotDevice, HumidifierEntity):
     @property
     def available_modes(self):
         """Return available modes."""
-        return list(self._ctrl_params['mode'].keys())
+        return list(self._ctrl_params['mode']['value_list'].keys())
 
     @property
     def device_class(self):
@@ -128,7 +128,7 @@ class MiotHumidifier(ToggleableMiotDevice, HumidifierEntity):
 
     async def async_set_mode(self, mode):
         """Update mode."""
-        result = await self.set_property_new(self._did_prefix + "mode", self._ctrl_params['mode'].get(mode))
+        result = await self.set_property_new(self._did_prefix + "mode", self._ctrl_params['mode']['value_list'].get(mode))
 
         if result:
             self._mode = mode
@@ -137,4 +137,4 @@ class MiotHumidifier(ToggleableMiotDevice, HumidifierEntity):
     def _handle_platform_specific_attrs(self):
         super()._handle_platform_specific_attrs()
         self._target_humidity = self._state_attrs.get(self._did_prefix + 'target_humidity')
-        self._mode = self.get_key_by_value(self._ctrl_params['mode'], self._state_attrs.get(self._did_prefix + 'mode'))
+        self._mode = self.get_key_by_value(self._ctrl_params['mode']['value_list'], self._state_attrs.get(self._did_prefix + 'mode'))

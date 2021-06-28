@@ -284,7 +284,15 @@ class GenericMiotDevice(Entity):
         if self._ctrl_params and not config.get('new_params_migrated'):
             for k in self._ctrl_params:
                 for kk in self._ctrl_params[k]:
-                    if kk in ['fault', 'speed', 'mode', 'drying_level', 'status', 'motor_control', 'motor_status', 'playing_state']:
+                    if kk in ['fault',
+                              'speed',
+                              'mode',
+                              'preset',
+                              'drying_level',
+                              'status',
+                              'motor_control',
+                              'motor_status',
+                              'playing_state']:
                         self._ctrl_params[k][kk] = {'value_list': self._ctrl_params[k][kk]}
 
         if type(self._ctrl_params) == str:

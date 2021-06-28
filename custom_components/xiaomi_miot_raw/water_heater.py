@@ -124,7 +124,7 @@ class MiotWaterHeater(ToggleableMiotDevice, WaterHeaterEntity):
     @property
     def operation_list(self):
         """Return the list of available operation modes."""
-        return (["on","off"] if self._did_prefix + 'switch_status' in self._mapping else []) + (list(self._ctrl_params['mode'].keys()) if 'mode' in self._ctrl_params else [])
+        return (["on","off"] if self._did_prefix + 'switch_status' in self._mapping else []) + (list(self._ctrl_params['mode']['value_list'].keys()) if 'mode' in self._ctrl_params else [])
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperatures."""
@@ -145,7 +145,7 @@ class MiotWaterHeater(ToggleableMiotDevice, WaterHeaterEntity):
             if self._state == False:
                 self._current_operation = 'off'
         else:
-            result = await self.set_property_new(self._did_prefix + "mode", self._ctrl_params['mode'][operation_mode])
+            result = await self.set_property_new(self._did_prefix + "mode", self._ctrl_params['mode']['value_list'][operation_mode])
             if result:
                 self._current_operation = operation_mode
                 self.async_write_ha_state()
@@ -165,6 +165,6 @@ class MiotWaterHeater(ToggleableMiotDevice, WaterHeaterEntity):
             if o in ('on','off'):
                 self._current_operation = o
             elif o is not None:
-                self.get_key_by_value(self._ctrl_params['mode'], o)
+                self.get_key_by_value(self._ctrl_params['mode']['value_list'], o)
         except:
             pass
