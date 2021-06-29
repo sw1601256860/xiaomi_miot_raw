@@ -427,6 +427,21 @@ class MiotAdapter:
                 elif v.vrange:
                     r['value_range'] = v.vrange
                 ret[k2].update(r)
+            for k,v in propdict2.items():
+                r = {}
+                acc = 0
+                acc |= ACCESS_READ if 'read' in v.access else 0
+                acc |= ACCESS_WRITE if 'write' in v.access else 0
+                acc |= ACCESS_NOTIFY if 'notify' in v.access else 0
+                r['access'] = acc
+                r['format'] = v.format_
+                if v.unit is not None and v.unit != "none":
+                    r['unit'] = v.unit
+                if v.vlist:
+                    r['value_list'] = dict([(a['description'], a['value']) for a in v.vlist])
+                elif v.vrange:
+                    r['value_range'] = v.vrange
+                ret[k] = r
 
             return ret
         except Exception as ex:
