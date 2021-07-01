@@ -140,7 +140,10 @@ async def async_setup_entry(hass, entry):
     if type(entry.data.get('devtype')) == str:
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(entry, entry.data.get('devtype')))
     else:
-        for t in entry.data.get('devtype'):
+        devtype_new = entry.data.get('devtype')
+        if 'sensor' in devtype_new and 'binary_sensor' not in devtype_new:
+            devtype_new += ['binary_sensor']
+        for t in devtype_new:
             hass.async_create_task(hass.config_entries.async_forward_entry_setup(entry, t))
 
     return True
@@ -358,6 +361,7 @@ class GenericMiotDevice(Entity):
             ATTR_HARDWARE_VERSION: device_info.hardware_version,
         }
         self._last_notified = 0
+        self._err4004_notified = False
         self._callbacks = set()
 
         for service in (SERVICE_TO_METHOD):
@@ -611,10 +615,8 @@ class GenericMiotDevice(Entity):
                 self._available = True
 
                 statedict={}
-                count4004 = 0
+                props_with_4004 = []
                 for r in response:
-                    if 'a_l_' in r['did']:
-                        continue
                     if r['code'] == 0:
                         statedict[r['did']] = pre_process_data(r['did'], r['value'])
                     elif r['code'] == 9999:
@@ -627,23 +629,29 @@ class GenericMiotDevice(Entity):
                             "设备不支持本地接入")
                     else:
                         statedict[r['did']] = None
-                        if r['code'] == -4004:
-                            count4004 += 1
+                        if r['code'] == -4004 and not self._err4004_notified:
+                            props_with_4004.append(r['did'])
                         else:
                             _LOGGER.info("Error getting %s 's property '%s' (code: %s)", self._name, r['did'], r['code'])
-                if count4004 == len(response):
-                    self._assumed_state = True
-                    self._skip_update = True
-                    # _LOGGER.warn("设备不支持状态反馈")
-                    if time.time() - self._last_notified > NOTIFY_INTERVAL:
-                        persistent_notification.async_create(
-                            self._hass,
-                            f"您添加的设备: **{self._name}** ，\n"
-                            f"在获取 {count4004} 个状态时，\n"
-                            f"全部返回 **-4004** 错误。\n"
-                            "请考虑通过云端接入此设备来解决此问题。",
-                            "设备可能不受支持")
-                        self._last_notified = time.time()
+                if not self._err4004_notified:
+                    if len(props_with_4004) == len(response):
+                        self._assumed_state = True
+                        self._skip_update = True
+                        # _LOGGER.warn("设备不支持状态反馈")
+                        if not self._err4004_notified:
+                            persistent_notification.async_create(
+                                self._hass,
+                                f"您添加的设备: **{self._name}** ，\n"
+                                f"在获取 {len(response)} 个状态时，\n"
+                                f"全部返回 **-4004** 错误。\n"
+                                "请考虑通过云端接入此设备来解决此问题。",
+                                "设备可能不受支持")
+                            self._err4004_notified = True
+                            del props_with_4004
+                    elif len(props_with_4004) != 0:
+                        _LOGGER.warn(f"Device {self._name} returns unknown error for property {props_with_4004}. If you encounter issues about this device, try enabling Cloud Access.")
+                        self._err4004_notified = True
+                        del props_with_4004
 
             else:
                 _LOGGER.info(f"{self._name} is updating from cloud.")

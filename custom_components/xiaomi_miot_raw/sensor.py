@@ -37,10 +37,11 @@ from .deps.const import (
     UNIT_MAPPING,
 )
 from .deps.ble_event_parser import (
-    BleEventParser,
+    EventParser,
     BleDoorParser,
     BleLockParser,
-    BleMotionParser,
+    TimestampParser,
+    ZgbIlluminationParser,
 )
 from collections import OrderedDict
 from .deps.miot_coordinator import MiotEventCoordinator
@@ -82,7 +83,10 @@ DEVCLASS_MAPPING = {
 async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the sensor from config."""
     hass.data.setdefault(DATA_KEY, {})
-    hass.data[DOMAIN]['add_handler'].setdefault(TYPE, async_add_devices)
+    hass.data[DOMAIN]['add_handler'].setdefault(TYPE, {})
+    if 'config_entry' in config:
+        id = f"{config.get(CONF_HOST)}-{config.get(CONF_NAME)}"
+        hass.data[DOMAIN]['add_handler'][TYPE].setdefault(id, async_add_devices)
 
     host = config.get(CONF_HOST)
     token = config.get(CONF_TOKEN)
@@ -99,7 +103,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
             ""
         )
         sensor_devices = [MiotEventBasedSensor(None, config, device_info, hass, item) for item in mapping.items()]
-
+        hass.data[DOMAIN]['miot_main_entity'][f'{host}-{config.get(CONF_NAME)}'] = sensor_devices[0]
         # device = MiotEventBasedSensor(None, config, device_info, hass, params['eb_type'])
         # devices = [device]
         # _LOGGER.info(f"{params['eb_type']} is the main device of {host}.")
@@ -175,44 +179,47 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
         hass.data[DOMAIN]['miot_main_entity'][f'{host}-{config.get(CONF_NAME)}'] = device
         hass.data[DOMAIN]['entities'][device.unique_id] = device
         if main_mi_type:
-            if params[main_mi_type].get('show_individual_sensor'):
-                for k in mappingnew.keys():
-                    if k in paramsnew:
-                        unit = paramsnew[k].get('unit')
-                        format_ = paramsnew[k].get('format')
-                    else:
-                        unit = format_ = None
-                    if format_ != 'bool':
-                        sensor_devices.append(MiotSubSensor(
-                            device, mappingnew, paramsnew, main_mi_type,
-                            {'sensor_property': k, CONF_SENSOR_UNIT: unit}
-                        ))
-                    else:
-                        binary_devices.append(MiotSubBinarySensor(
-                            device, mappingnew, paramsnew, main_mi_type,
-                            {'sensor_property': k}
-                        ))
+            for k in mappingnew.keys():
+                if 'a_l_' in k:
+                    continue
+                if k in paramsnew:
+                    unit = paramsnew[k].get('unit')
+                    format_ = paramsnew[k].get('format')
+                else:
+                    unit = format_ = None
+                if format_ != 'bool':
+                    sensor_devices.append(MiotSubSensor(
+                        device, mappingnew, paramsnew, main_mi_type,
+                        {'sensor_property': k, CONF_SENSOR_UNIT: unit}
+                    ))
+                else:
+                    binary_devices.append(MiotSubBinarySensor(
+                        device, mappingnew, paramsnew, main_mi_type,
+                        {'sensor_property': k}
+                    ))
         async_add_devices(sensor_devices, update_before_add=True)
         if binary_devices:
             retry_time = 1
             while True:
                 if 'binary_sensor' in hass.data[DOMAIN]['add_handler']:
-                    break
+                    if f"{host}-{config.get(CONF_NAME)}" in hass.data[DOMAIN]['add_handler']['binary_sensor']:
+                        break
+                retry_time *= 2
+                if retry_time > 120:
+                    _LOGGER.error(f"Cannot create binary sensor for {config.get(CONF_NAME)}({host}) !")
+                    raise PlatformNotReady
                 else:
-                    retry_time *= 2
-                    if retry_time > 120:
-                        _LOGGER.error(f"Cannot create binary sensor for {config.get(CONF_NAME)}({host}) !")
-                        raise PlatformNotReady
-                    else:
-                        _LOGGER.debug(f"Waiting for binary sensor of {config.get(CONF_NAME)}({host}) ({retry_time - 1} seconds).")
-                        await asyncio.sleep(retry_time)
+                    _LOGGER.debug(f"Waiting for binary sensor of {config.get(CONF_NAME)}({host}) ({retry_time - 1} seconds).")
+                    await asyncio.sleep(retry_time)
 
-            hass.data[DOMAIN]['add_handler']['binary_sensor'](binary_devices, update_before_add=True)
+            hass.data[DOMAIN]['add_handler']['binary_sensor'][f"{host}-{config.get(CONF_NAME)}"](binary_devices, update_before_add=True)
 
     if other_mi_type:
         retry_time = 1
         while True:
             if parent_device := hass.data[DOMAIN]['miot_main_entity'].get(f'{host}-{config.get(CONF_NAME)}'):
+                if isinstance(parent_device, MiotSensor):
+                    return
                 break
             else:
                 retry_time *= 2
@@ -361,6 +368,7 @@ class MiotEventBasedSensor(Entity):
         self._name = config.get(CONF_NAME)
 
         self._model = device_info.model
+        self._host = config.get(CONF_HOST)
         self._unique_id = f"{device_info.model.split('.')[-1]}-event-{config.get(CONF_CLOUD)['did'][-6:]}-{self._event_item[0]}"
         self._device_identifier = f"{device_info.model.split('.')[-1]}-event-{config.get(CONF_CLOUD)['did'][-6:]}"
         if config.get('ett_id_migrated'):
@@ -454,7 +462,8 @@ class MiotEventBasedSensor(Entity):
         self._state_attrs = {
             ATTR_MODEL: self._model,
         }
-        self._state_attrs.update(statedict)
+        if statedict:
+            self._state_attrs.update(statedict)
         self.async_write_ha_state()
         self.publish_updates()
 
@@ -479,9 +488,18 @@ class MiotEventBasedSensor(Entity):
                 MiotEventBasedSubSensor(self, {
                     'id': 'last_triggered',
                     'name': '上次触发',
-                    'data_processor': BleMotionParser,
+                    'data_processor': TimestampParser,
                     'property': 'friendly_time',
                     'icon': 'mdi:history',
+                })
+            )
+            ett_to_add.append(
+                MiotEventBasedSubSensor(self, {
+                    'id': 'illumination',
+                    'name': 'Illumination',
+                    'data_processor': ZgbIlluminationParser,
+                    'property': 'illumination',
+                    'icon': 'mdi:white-balance-sunny',
                 })
             )
         elif k == 7:
@@ -541,7 +559,7 @@ class MiotEventBasedSensor(Entity):
                 })
             )
 
-        self._hass.data[DOMAIN]['add_handler']['sensor'](ett_to_add, update_before_add=True)
+        self._hass.data[DOMAIN]['add_handler']['sensor'][f"{self._host}-{self._name}"](ett_to_add, update_before_add=True)
 
 class MiotEventBasedSubSensor(Entity):
     def __init__(self, parent_sensor, options):
