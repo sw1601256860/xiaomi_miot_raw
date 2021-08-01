@@ -180,7 +180,7 @@ async def _setup_micloud_entry(hass, config_entry):
     data: dict = config_entry.data.copy()
     server_location = data.get('server_location') or 'cn'
 
-    session = aiohttp_client.async_create_clientsession(hass)
+    session = aiohttp_client.async_create_clientsession(hass, auto_cleanup=False)
     cloud = MiCloud(session)
     cloud.svr = server_location
 
@@ -249,7 +249,7 @@ class GenericMiotDevice(Entity):
             except StopIteration:
                 _LOGGER.info(f"Setting up xiaomi account for {self._name}...")
                 mc = MiCloud(
-                    aiohttp_client.async_create_clientsession(self._hass)
+                    aiohttp_client.async_create_clientsession(self._hass, auto_cleanup=False)
                 )
                 mc.login_by_credientals(
                     self._cloud.get('userId'),
@@ -297,12 +297,14 @@ class GenericMiotDevice(Entity):
                               'motor_status',
                               'playing_state']:
                         self._ctrl_params[k][kk] = {'value_list': self._ctrl_params[k][kk]}
+        self._max_properties = 10
 
         if type(self._ctrl_params) == str:
             self._ctrl_params = json.loads(self._ctrl_params)
 
         if not type(self._ctrl_params) == OrderedDict:
             paramsnew = {}
+            self._max_properties = self._ctrl_params.pop('max_properties', 10)
             for k,v in self._ctrl_params.items():
                 for kk,vv in v.items():
                     paramsnew[f"{k[:10]}_{kk}"] = vv
@@ -452,6 +454,7 @@ class GenericMiotDevice(Entity):
                     )
                     if result:
                         return True
+                return False
             else:
                 _LOGGER.info(f"Control {self._name} by cloud.")
                 if not multiparams:
@@ -610,8 +613,8 @@ class GenericMiotDevice(Entity):
         try:
             if not self._cloud:
                 response = await self.hass.async_add_job(
-                        self._device.get_properties_for_mapping
-                    )
+                    partial(self._device.get_properties_for_mapping, max_properties=self._max_properties)
+                )
                 self._available = True
 
                 statedict={}
@@ -893,12 +896,6 @@ class ToggleableMiotDevice(GenericMiotDevice, ToggleEntity):
             elif state == self._ctrl_params['switch_status']['power_off']:
                 self._state = False
             elif not self.assumed_state:
-                _LOGGER.warning(
-                    "New state (%s) of %s doesn't match expected values: %s/%s",
-                    state, self._name,
-                    self._ctrl_params['switch_status']['power_on'],
-                    self._ctrl_params['switch_status']['power_off'],
-                )
                 self._state = None
         else:
             self._state = None
@@ -1098,7 +1095,7 @@ async def async_generic_setup_platform(
                         di['model'],
                         di['mac'],
                         di['fw_version'],
-                        ""
+                        "N/A for Cloud Mode"
                     )
         if main_mi_type in main_class_dict:
             device = main_class_dict[main_mi_type](miio_device, config, device_info, hass, main_mi_type)
